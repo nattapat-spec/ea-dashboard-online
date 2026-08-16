@@ -289,6 +289,7 @@ function computeAll(){
   renderEqChart(s.eqCurve, s.capital, s.maxDDPoint);
   renderMatrix();
   renderDetail();
+  renderTimeReport();
 }
 function renderKPIs(s){
   const el = document.getElementById('kpis');
@@ -454,6 +455,134 @@ document.getElementById('periodSeg').addEventListener('click', e=>{
   renderDetail();
 });
 document.getElementById('searchBox').addEventListener('input', renderDetail);
+
+/* ============ รายงานช่วงเวลาที่ขาดทุน (วันในสัปดาห์ / รายชั่วโมง) ============ */
+const THAI_DOW_ORDER = [1,2,3,4,5,6,0]; // เรียง จันทร์..อาทิตย์ (Date.getUTCDay(): 0=อาทิตย์..6=เสาร์)
+const THAI_DOW_NAME  = {0:'อาทิตย์',1:'จันทร์',2:'อังคาร',3:'พุธ',4:'พฤหัสบดี',5:'ศุกร์',6:'เสาร์'};
+let timeReportEACode = null; // ใช้เช็คว่าเพิ่งเปลี่ยน EA มั้ย (ถ้าเปลี่ยน ค่อยรีเซ็ตช่วงวันที่เป็นทั้งหมด)
+
+function dowIndexUTC(t){ return new Date(t).getUTCDay(); }
+function hourIndexUTC(t){ return new Date(t).getUTCHours(); }
+function fmtDateInput(t){ const d=new Date(t); return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`; }
+
+function bucketByIndex(trades, idxFn, size){
+  const buckets = Array.from({length:size}, ()=>({n:0, wins:0, winSum:0, losses:0, lossSum:0}));
+  trades.forEach(tr=>{
+    const b = buckets[idxFn(tr.t)];
+    b.n++;
+    if (tr.p >= 0){ b.wins++; b.winSum += tr.p; } else { b.losses++; b.lossSum += tr.p; }
+  });
+  return buckets.map(b=>({
+    n:b.n, wins:b.wins, losses:b.losses,
+    winSum: Math.round(b.winSum*100)/100,
+    lossSum: Math.round(b.lossSum*100)/100,
+    net: Math.round((b.winSum+b.lossSum)*100)/100,
+  }));
+}
+
+function timeReportRangeMs(){
+  const fromEl = document.getElementById('reportFromDate');
+  const toEl = document.getElementById('reportToDate');
+  const fromMs = fromEl.value ? new Date(fromEl.value + 'T00:00:00Z').getTime() : -Infinity;
+  const toMs = toEl.value ? new Date(toEl.value + 'T23:59:59.999Z').getTime() : Infinity;
+  return {fromMs, toMs};
+}
+
+function resetTimeReportRange(){
+  if (!lastComputed || !lastComputed.scaledTrades.length) return;
+  const ts = lastComputed.scaledTrades.map(t=>t.t);
+  document.getElementById('reportFromDate').value = fmtDateInput(Math.min(...ts));
+  document.getElementById('reportToDate').value = fmtDateInput(Math.max(...ts));
+  renderTimeReport();
+}
+
+function renderTimeReportTable(elId, buckets, labelFn){
+  const active = buckets.filter(b=>b.n>0);
+  const minLossSum = active.length ? Math.min(...active.map(b=>b.lossSum)) : 0;
+  let h = '<thead><tr><th>ช่วง</th><th>จำนวนไม้</th><th>ไม้กำไร</th><th>ไม้ขาดทุน</th><th>Win Rate</th><th>กำไรรวม</th><th>ขาดทุนรวม</th><th>สุทธิ</th></tr></thead><tbody>';
+  buckets.forEach((b,i)=>{
+    if (b.n===0){
+      h += `<tr><td>${labelFn(i)}</td><td colspan="7" style="text-align:left;color:var(--muted)">— ไม่มีไม้ในช่วงนี้ —</td></tr>`;
+      return;
+    }
+    const winRate = Math.round(1000*b.wins/b.n)/10;
+    const netCls = b.net>=0 ? 'pos':'neg';
+    const rowCls = (minLossSum<0 && b.lossSum===minLossSum) ? 'hi' : '';
+    h += `<tr class="${rowCls}"><td>${labelFn(i)}</td><td class="mono">${b.n}</td><td class="mono pos">${b.wins}</td><td class="mono neg">${b.losses}</td><td class="mono">${fmtPctAbs(winRate)}</td><td class="mono pos">${fmt(b.winSum)}</td><td class="mono neg">${b.lossSum!==0?fmt(b.lossSum):'—'}</td><td class="mono ${netCls}">${fmt(b.net)}</td></tr>`;
+  });
+  h += '</tbody>';
+  document.getElementById(elId).innerHTML = h;
+}
+
+function renderTimeReportSummary(dowBuckets, hourBuckets){
+  const dowName  = i => THAI_DOW_NAME[THAI_DOW_ORDER[i]];
+  const hourName = i => `${String(i).padStart(2,'0')}:00–${String((i+1)%24).padStart(2,'0')}:00`;
+
+  let worstDowIdx=0, worstDowVal=0, freqDowIdx=0, freqDowVal=-1;
+  dowBuckets.forEach((b,i)=>{
+    if (b.lossSum < worstDowVal){ worstDowVal=b.lossSum; worstDowIdx=i; }
+    if (b.losses  > freqDowVal){ freqDowVal=b.losses; freqDowIdx=i; }
+  });
+  let worstHourIdx=0, worstHourVal=0, freqHourIdx=0, freqHourVal=-1;
+  hourBuckets.forEach((b,i)=>{
+    if (b.lossSum < worstHourVal){ worstHourVal=b.lossSum; worstHourIdx=i; }
+    if (b.losses  > freqHourVal){ freqHourVal=b.losses; freqHourIdx=i; }
+  });
+
+  document.getElementById('timeReportSummary').innerHTML = `
+    <div class="kpi"><div class="lbl">วันที่ขาดทุนเยอะสุด (มูลค่า)</div><div class="val neg">${dowName(worstDowIdx)}</div><div class="sub">${fmt(worstDowVal)} • แพ้ ${dowBuckets[worstDowIdx].losses} ครั้ง</div></div>
+    <div class="kpi"><div class="lbl">วันที่แพ้บ่อยสุด (จำนวนครั้ง)</div><div class="val neg">${dowName(freqDowIdx)}</div><div class="sub">${freqDowVal<0?0:freqDowVal} ครั้ง • ${fmt(dowBuckets[freqDowIdx].lossSum)}</div></div>
+    <div class="kpi"><div class="lbl">ชั่วโมงที่ขาดทุนเยอะสุด (มูลค่า)</div><div class="val neg">${hourName(worstHourIdx)}</div><div class="sub">${fmt(worstHourVal)} • แพ้ ${hourBuckets[worstHourIdx].losses} ครั้ง</div></div>
+    <div class="kpi"><div class="lbl">ชั่วโมงที่แพ้บ่อยสุด (จำนวนครั้ง)</div><div class="val neg">${hourName(freqHourIdx)}</div><div class="sub">${freqHourVal<0?0:freqHourVal} ครั้ง • ${fmt(hourBuckets[freqHourIdx].lossSum)}</div></div>
+  `;
+}
+
+function renderTimeReport(){
+  if (!lastComputed) return;
+  const fromEl = document.getElementById('reportFromDate');
+  const toEl = document.getElementById('reportToDate');
+  if (!fromEl || !toEl) return;
+  const allTrades = lastComputed.scaledTrades;
+
+  if (timeReportEACode !== selectedCode){
+    timeReportEACode = selectedCode;
+    if (allTrades.length){
+      const ts = allTrades.map(t=>t.t);
+      fromEl.value = fmtDateInput(Math.min(...ts));
+      toEl.value = fmtDateInput(Math.max(...ts));
+    } else {
+      fromEl.value = ''; toEl.value = '';
+    }
+  }
+
+  if (!allTrades.length){
+    document.getElementById('timeReportSummary').innerHTML = '<div class="empty-state">ไม่มีข้อมูลเทรด</div>';
+    document.getElementById('dowReportTable').innerHTML = '';
+    document.getElementById('hourReportTable').innerHTML = '';
+    document.getElementById('reportRangeCount').textContent = '';
+    return;
+  }
+
+  const {fromMs, toMs} = timeReportRangeMs();
+  const trades = allTrades.filter(tr => tr.t >= fromMs && tr.t <= toMs);
+  document.getElementById('reportRangeCount').textContent = `${trades.length.toLocaleString()} ไม้ ในช่วงที่เลือก (จากทั้งหมด ${allTrades.length.toLocaleString()} ไม้)`;
+
+  if (!trades.length){
+    document.getElementById('timeReportSummary').innerHTML = '<div class="empty-state">ไม่มีไม้ในช่วงวันที่เลือก</div>';
+    document.getElementById('dowReportTable').innerHTML = '';
+    document.getElementById('hourReportTable').innerHTML = '';
+    return;
+  }
+
+  const dowBuckets  = bucketByIndex(trades, t => THAI_DOW_ORDER.indexOf(dowIndexUTC(t)), 7);
+  const hourBuckets = bucketByIndex(trades, t => hourIndexUTC(t), 24);
+
+  renderTimeReportSummary(dowBuckets, hourBuckets);
+  renderTimeReportTable('dowReportTable', dowBuckets, i => THAI_DOW_NAME[THAI_DOW_ORDER[i]]);
+  renderTimeReportTable('hourReportTable', hourBuckets, i => `${String(i).padStart(2,'0')}:00–${String((i+1)%24).padStart(2,'0')}:00`);
+}
+document.getElementById('reportFromDate').addEventListener('change', renderTimeReport);
+document.getElementById('reportToDate').addEventListener('change', renderTimeReport);
 
 /* ============ TAB 2: COMPARE (ALL EAs) ============ */
 let cmpSelected = new Set([TOP10_ORDER[0], TOP10_ORDER[1], TOP10_ORDER[2]]);

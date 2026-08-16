@@ -162,6 +162,36 @@
       <div class="matrix-scroll" style="margin-top:14px;"><table id="detailTable"></table></div>
       <p class="note">DD (ในช่วงนั้น) = peak-to-trough ของ P/L สะสมภายในช่วงนั้นเท่านั้น ไม่ขึ้นกับทุนเริ่มต้น "จำนวนเงินที่เสียติดกัน" = ผลรวม $ ของไม้ที่แพ้ติดกันชุดที่แย่สุดในช่วงนั้น</p>
     </div>
+
+    <div class="section-title toggleable" onclick="toggleSection('sec-timereport')"><span class="chevron" id="chev-sec-timereport">▾</span>รายงานช่วงเวลาที่ขาดทุน <span class="tag">(แยกวันในสัปดาห์ + รายชั่วโมง — เลือกช่วงวันที่ได้อิสระ)</span></div>
+    <div class="panel collapsible" id="sec-timereport">
+      <div class="controls-grid">
+        <div class="field">
+          <label>จากวันที่</label>
+          <input type="date" id="reportFromDate">
+        </div>
+        <div class="field">
+          <label>ถึงวันที่</label>
+          <input type="date" id="reportToDate">
+        </div>
+        <div class="field">
+          <button class="reset-btn" onclick="resetTimeReportRange()">↺ ทั้งหมด (รีเซ็ตช่วงวันที่)</button>
+        </div>
+        <div class="field">
+          <div class="hint" id="reportRangeCount" style="margin-top:26px;"></div>
+        </div>
+      </div>
+
+      <div class="kpis" id="timeReportSummary" style="margin-top:18px;"></div>
+
+      <div class="section-title" style="margin-top:6px;font-size:13.5px;">แยกตามวันในสัปดาห์</div>
+      <div class="matrix-scroll"><table id="dowReportTable"></table></div>
+
+      <div class="section-title" style="margin-top:20px;font-size:13.5px;">แยกตามชั่วโมง (0–23)</div>
+      <div class="matrix-scroll"><table id="hourReportTable"></table></div>
+
+      <p class="note">ขาดทุน = ไม้ที่ปิดด้วยกำไร &lt; 0 (รวม BE ที่ติดลบเล็กน้อย) • ชั่วโมง/วันคำนวณจากเวลาที่บันทึกในข้อมูลเทรดต้นฉบับ (เวลาเซิร์ฟเวอร์ในไฟล์รายงาน MT5) • ตัวเลข $ ปรับตาม Lot/ทุนใน What-If ด้านบนเสมอ • แถวสีแดงอ่อน = ช่วงที่ขาดทุนมากที่สุด</p>
+    </div>
   </div>
 
   <!-- ===================== TAB 2: COMPARE (ALL EAs) ===================== -->
