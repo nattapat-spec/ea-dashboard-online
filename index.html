@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EA Analytics — วิเคราะห์ + จำลอง + เปรียบเทียบ</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<script>(function(){try{var s=localStorage.getItem('eaDashboardTheme');if(!s){s=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}document.documentElement.setAttribute('data-theme',s);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="chart-tooltip" id="chartTooltip"></div>
+<header>
+  <button id="themeToggleBtn" class="theme-toggle" onclick="toggleTheme()" title="สลับธีมมืด/สว่าง">🌙</button>
+  <h1>EA Analytics — วิเคราะห์ + จำลอง + เปรียบเทียบ</h1>
+  <p>สถิติทั้งหมดคำนวณจากตาราง Deals จริงของแต่ละ EA (ไม่ใช่ตัวเลขสรุปจากรายงาน) ตรวจสอบแล้วตรงกับรายงาน MT5 100%</p>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="compare" onclick="switchTab('compare')">เปรียบเทียบ EA (ทุกตัว)</button>
+    <button class="tab-btn" data-tab="main" onclick="switchTab('main')">หน้าหลัก (Top 10 เชิงลึก)</button>
+    <button class="tab-btn" data-tab="create" onclick="switchTab('create')">🧬 สร้าง EA ใหม่</button>
+  </div>
+</header>
+<div class="wrap">
+
+  <div class="panel upload-panel">
+    <div class="section-title" style="margin-top:0;">อัพโหลด EA ใหม่ <span class="tag">(แนบได้ทั้งไฟล์ EA ต้นฉบับ (.mq5) และผลเทส (.html/.xlsx) พร้อมกัน — ใช้ได้ทั้งสองแท็บ)</span></div>
+    <div class="controls-grid">
+      <div class="field">
+        <label>ไฟล์ผลเทส (บังคับ)</label>
+        <input type="file" id="fileInput" accept=".html,.htm,.xlsx">
+      </div>
+      <div class="field">
+        <label>ไฟล์ EA ต้นฉบับ .mq5 <span class="tag" style="font-weight:400;">(ไม่บังคับ — แนบเพื่อเก็บซอร์ส + ช่วยเดา Logic)</span></label>
+        <input type="file" id="eaFileInput" accept=".mq5,.mqh,.txt">
+      </div>
+      <div class="field">
+        <label>ชื่อที่จะแสดง (ไม่บังคับ)</label>
+        <input type="text" id="labelInput" placeholder="เช่น US30_v3.00_ทดสอบใหม่">
+      </div>
+      <div class="field">
+        <button class="add-btn" onclick="handleUpload()">+ เพิ่มเข้าระบบ</button>
+      </div>
+    </div>
+    <div class="autodetect-note" id="autodetectNote">🔍 ระบบเดา Logic feature จากไฟล์ .mq5 ที่แนบให้อัตโนมัติแล้ว (ติ๊กไว้ด้านล่าง) — กรุณาตรวจสอบ/แก้ไขให้ตรงก่อนกด "เพิ่มเข้าระบบ" เพราะเป็นการเดาแบบคร่าวๆ ไม่ใช่การวิเคราะห์โค้ดจริง</div>
+    <div class="section-title toggleable" onclick="toggleUploadFeat()" style="margin-top:10px;font-size:12.5px;">
+      <span class="chevron" id="chev-uploadFeat">▸</span>ระบุ Logic Feature ของ EA นี้ <span class="tag">(ไม่บังคับ — ติ๊กเองเพื่อให้ EA นี้ขึ้นในตาราง Logic ของแท็บเปรียบเทียบด้วย)</span>
+    </div>
+    <div class="panel collapsible collapsed" id="uploadFeatPanel" style="padding:10px 12px;margin-bottom:10px;">
+      <div class="feat-pick-grid" id="uploadFeatGrid"></div>
+    </div>
+    <div class="status-msg" id="statusMsg"></div>
+    <div class="uploaded-list" id="uploadedList"></div>
+    <div id="dismissedChipsWrap" style="margin-top:6px;"></div>
+    <div class="code-view" id="codeView"><div class="code-view-head"><span id="codeViewTitle"></span><button class="reset-btn" style="padding:4px 10px;font-size:11px;" onclick="closeCodeView()">ปิด ×</button></div><pre id="codeViewPre"></pre></div>
+    <p class="note">✓ การอัพโหลด/ลบ EA จะถูก<b>บันทึกลงฐานข้อมูลกลาง (Supabase) ทันที</b> — ทุกคนที่เข้าลิงก์เว็บนี้จะเห็นข้อมูลชุดเดียวกัน ไม่ต้องดาวน์โหลดไฟล์สำรองอีกต่อไป (การซ่อน/ลบ EA ในตัว (Top10) ยังเป็นการตั้งค่าเฉพาะเบราว์เซอร์นี้เท่านั้น)</p>
+  </div>
+
+  <!-- ===================== TAB 1: MAIN (TOP 10) ===================== -->
+  <div class="tab-page" id="tab-main">
+
+    <div class="cards" id="cards"></div>
+    <p class="note" style="margin-bottom:22px;">การ์ดด้านบนแสดง <b>ค่าอ้างอิงเดิม</b> (Lot/ทุนเดิมของแต่ละ EA ตามผลแบคเทสจริง) ใช้คลิกเพื่อเลือก EA เท่านั้น</p>
+
+
+  <div class="section-title toggleable" onclick="toggleSection('sec-logic-top10')"><span class="chevron" id="chev-sec-logic-top10">▾</span>ตาราง Logic ของ Top 10 EA <span class="tag">(ฟีเจอร์เป็นแถว, EA เป็นคอลัมน์ — ✓ = มีฟีเจอร์นี้)</span></div>
+  <div class="panel matrix-scroll collapsible" id="sec-logic-top10">
+    <table id="logicTable" class="logic-table">
+      <thead>
+        <tr><th class="feat-label">ฟีเจอร์ / Logic</th><th>E09</th><th>E36</th><th>E23</th><th>E29</th><th>E39</th><th>E45</th><th>E40</th><th>E33</th><th>E37</th><th>E15</th></tr>
+      </thead>
+      <tbody>
+        <tr class="note-row"><td class="feat-label">ไฟล์ต้นฉบับ</td><td class="note-cell mono">US30_v1.81_RSI5545_ADXRising.mq5</td><td class="note-cell mono">US30_v2.10.2_TS200_UnifiedBE_ATR_NoNews_SMA.mq5</td><td class="note-cell mono">US30_v2.01_TS200_ManualSL_ATR_SL.mq5</td><td class="note-cell mono">US30_v2.05_TS200_ManualSL_ATR_ConsecFix.mq5</td><td class="note-cell mono">US30_v2.10.4_S2Only_TS200_UnifiedBE_ATR_NoNews_S2TimeStop.mq5</td><td class="note-cell mono">US30_v2.11_TS200_UnifiedBE_ATR_Trail150_NoNews.mq5</td><td class="note-cell mono">US30_v2.10.4_TS200_UnifiedBE_ATR_NoNews_S2TimeStop.mq5</td><td class="note-cell mono">US30_v2.09_TS200_ManualSL_ATR_EABE_NoNews.mq5</td><td class="note-cell mono">US30_v2.10.3_TS200_UnifiedBE_ATR_NoNews_RSICeiling.mq5</td><td class="note-cell mono">US30_v1.93_TS200_DI12.mq5</td></tr>
+        <tr class="note-row"><td class="feat-label">หมายเหตุวิวัฒนาการ</td><td class="note-cell">ADX rising เทียบ 1 แท่งก่อนหน้า (บั๊ก block เกือบหมด)</td><td class="note-cell">ใช้ SMA(40) แทน EMA(40)</td><td class="note-cell">&mdash;</td><td class="note-cell">ConsecLoss นับข้ามวันได้</td><td class="note-cell">แยกเฉพาะ System 2 + S2 Time-Stop</td><td class="note-cell">ลดระยะ Trail 180→150pts</td><td class="note-cell">S1+S2 รวมกัน + S2 Time-Stop (Slow Bleed cutoff)</td><td class="note-cell">ตัด News Block ออก</td><td class="note-cell">เพดาน RSI กัน overbought (ปิดไว้เป็น default)</td><td class="note-cell">&mdash;</td></tr>
+        <tr class="cat-row"><td colspan="11">สัญญาณ</td></tr>
+<tr><td class="feat-label">S1 เศษราคา</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td></tr>
+<tr><td class="feat-label">S2 RSI+EMA</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td></tr>
+<tr><td class="feat-label">เปิดซ้อน 2 ระบบ</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td></tr>
+<tr><td class="feat-label">RSI 55/45</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td></tr>
+<tr class="cat-row"><td colspan="11">ฟิลเตอร์เข้าไม้</td></tr>
+<tr><td class="feat-label">Session Filter</td><td class="chk yes">✓</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">DI Gap (pts)</td><td class="chk yes">5</td><td class="chk yes">5</td><td class="chk yes">5</td><td class="chk yes">5</td><td class="chk yes">5</td><td class="chk yes">5</td><td class="chk yes">5</td><td class="chk yes">5</td><td class="chk yes">5</td><td class="chk yes">12</td></tr>
+<tr><td class="feat-label">ADX Rising</td><td class="chk yes">✓</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">H4 Trend Filter</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">News Block</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">RSI Ceiling</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">Vol/Spread Gate</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr class="cat-row"><td colspan="11">ความเสี่ยง/SL</td></tr>
+<tr><td class="feat-label">ATR-based SL</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">Risk-based Lot</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">Daily Loss Limit</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td></tr>
+<tr><td class="feat-label">Consec Loss Cooldown</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr class="cat-row"><td colspan="11">การจัดการไม้</td></tr>
+<tr><td class="feat-label">Trailing Stop</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td></tr>
+<tr><td class="feat-label">Breakeven</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">Manual Trade Mgmt</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk yes">✓</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">Partial Close</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">S2 Time-Stop</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">TP Extension 3.5R</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">S2 เทรดวันพุธได้</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr class="cat-row"><td colspan="11">อื่นๆ</td></tr>
+<tr><td class="feat-label">Timeframe อื่น (M15/H1)</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+<tr><td class="feat-label">ใช้ SMA แทน EMA</td><td class="chk no">·</td><td class="chk yes">✓</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td><td class="chk no">·</td></tr>
+
+      </tbody>
+    </table>
+    <p class="note" style="margin-top:10px;">E09 = v1.81 RSI5545 ADXRising, E36 = v2.10.2 SMA, E23 = v2.01 ATR_SL, E29 = v2.05 ATR_ConsecFix, E39 = v2.10.4 S2Only, E45 = v2.11 Trail150, E40 = v2.10.4 S2TimeStop, E33 = v2.09 NoNews, E37 = v2.10.3 RSICeiling, E15 = v1.93 TS200 DI12</p>
+  </div>
+
+
+    <div class="section-title toggleable" onclick="toggleSection('sec-whatif')"><span class="chevron" id="chev-sec-whatif">▾</span>What-If Simulator <span class="tag">— ปรับ Lot, ทุนเริ่มต้น, ดู Equity Curve</span></div>
+    <div class="collapsible" id="sec-whatif">
+    <div class="panel">
+      <div class="controls-grid">
+        <div class="field">
+          <label>เลือก EA</label>
+          <select id="eaSelect"></select>
+        </div>
+        <div class="field">
+          <label>Lot ที่ต้องการทดสอบ</label>
+          <input type="number" id="lotInput" step="0.01" min="0.01">
+          <div class="hint" id="lotHint"></div>
+        </div>
+        <div class="field">
+          <label>ทุนเริ่มต้น ($)</label>
+          <input type="number" id="capInput" step="100" min="1">
+          <div class="hint" id="capHint"></div>
+        </div>
+        <div class="field">
+          <button class="reset-btn" onclick="resetToOriginal()">↺ รีเซ็ตเป็นค่าเดิม</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="warn-box" id="warnBox"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="section-title" style="margin-top:14px;">Equity Curve ทั้งหมด <span class="tag">(ตามทุน+Lot ที่ตั้งไว้)</span></div>
+    <div class="panel chart-wrap"><svg id="eqChart" width="100%" height="220"></svg></div>
+    </div>
+
+    <div class="section-title toggleable" onclick="toggleSection('sec-matrix')"><span class="chevron" id="chev-sec-matrix">▾</span>เปรียบเทียบกำไร/ขาดทุนรายปี ทั้ง 10 EA <span class="tag" id="matrixLotTag">(ปรับตาม Lot ที่ตั้งใน What-If ด้านบน)</span></div>
+    <div class="panel matrix-scroll collapsible" id="sec-matrix"><table id="matrixTable"></table></div>
+
+    <div class="controls">
+      <div class="seg" id="periodSeg">
+        <button data-p="yearly" class="active">รายปี</button>
+        <button data-p="quarterly">รายไตรมาส</button>
+        <button data-p="monthly">รายเดือน</button>
+        <button data-p="weekly">รายสัปดาห์</button>
+        <button data-p="daily">รายวัน</button>
+      </div>
+      <input type="text" id="searchBox" placeholder="ค้นหาช่วงเวลา เช่น 2020, 2020-03, 2020-W11, 2020-Q1 ...">
+    </div>
+
+    <div class="section-title" id="detailTitle">รายละเอียดของ EA ที่เลือก</div>
+    <div class="panel">
+      <div class="legend">
+        <span><span class="dot" style="background:var(--green)"></span>กำไรสุทธิเป็นบวก</span>
+        <span><span class="dot" style="background:var(--red)"></span>กำไรสุทธิเป็นลบ</span>
+      </div>
+      <div class="chart-wrap"><svg id="chart" width="100%" height="220"></svg></div>
+      <div class="matrix-scroll" style="margin-top:14px;"><table id="detailTable"></table></div>
+      <p class="note">DD (ในช่วงนั้น) = peak-to-trough ของ P/L สะสมภายในช่วงนั้นเท่านั้น ไม่ขึ้นกับทุนเริ่มต้น "จำนวนเงินที่เสียติดกัน" = ผลรวม $ ของไม้ที่แพ้ติดกันชุดที่แย่สุดในช่วงนั้น</p>
+    </div>
+  </div>
+
+  <!-- ===================== TAB 2: COMPARE (ALL EAs) ===================== -->
+  <div class="tab-page active" id="tab-compare">
+
+    <div class="section-title toggleable" onclick="toggleSection('sec-cmp-picker')"><span class="chevron" id="chev-sec-cmp-picker">▾</span>เลือก EA ที่จะเปรียบเทียบ <span class="tag" id="pickCount"></span></div>
+    <div class="collapsible" id="sec-cmp-picker">
+    <div class="panel">
+      <input type="text" id="pickerSearch" class="picker-search" placeholder="ค้นหาชื่อ EA เช่น v2.10, ATR, RSI ...">
+      <div class="ea-picker" id="eaPicker"></div>
+      <div class="picker-actions">
+        <button onclick="cmpSelectTop(3)">Top 3</button>
+        <button onclick="cmpSelectTop(5)">Top 5</button>
+        <button onclick="cmpSelectTop(10)">Top 10</button>
+        <button onclick="cmpSelectAll()">เลือกทั้งหมด (~45 ตัว)</button>
+        <button onclick="cmpClearSelection()">ล้างการเลือก</button>
+      </div>
+      <p class="note">คลิกไอคอน 🗑 ที่รายชื่อ EA แต่ละตัวเพื่อลบออกจากรายการเปรียบเทียบถาวร (ลบได้ทุกตัว รวมถึง EA เก่าในแคตตาล็อกด้วย) — กด "บันทึกไฟล์ถาวร" ในแผงอัพโหลดด้านบนอีกครั้งเพื่อให้การลบมีผลถาวรในไฟล์</p>
+      <div id="deletedListWrap" style="display:none;margin-top:10px;"></div>
+    </div>
+    </div>
+
+    <div class="section-title toggleable" onclick="toggleSection('sec-cmp-mode')"><span class="chevron" id="chev-sec-cmp-mode">▾</span>โหมด Lot / ทุนเริ่มต้น</div>
+    <div class="collapsible" id="sec-cmp-mode">
+    <div class="panel">
+      <div class="controls-grid">
+        <div class="field">
+          <label>โหมดเปรียบเทียบ</label>
+          <div class="mode-toggle" id="modeToggle">
+            <button data-m="original" class="active">ใช้ค่าเดิมของแต่ละ EA</button>
+            <button data-m="uniform">ใช้ Lot/ทุนเดียวกันทุกตัว</button>
+          </div>
+        </div>
+        <div class="field" id="uniformLotField" style="display:none;">
+          <label>Lot เดียวกันทุก EA</label>
+          <input type="number" id="uniformLot" step="0.01" min="0.01" value="0.3">
+        </div>
+        <div class="field" id="uniformCapField" style="display:none;">
+          <label>ทุนเริ่มต้นเดียวกันทุก EA ($)</label>
+          <input type="number" id="uniformCap" step="100" min="1" value="1000">
+        </div>
+      </div>
+      <p class="note" id="modeNote">แต่ละ EA จะใช้ Lot และทุนเริ่มต้นตามผลแบคเทสจริงของตัวเอง</p>
+    </div>
+    </div>
+
+    <div id="cmpResultsArea">
+      <div class="empty-state">เลือก EA อย่างน้อย 1 ตัวด้านบนเพื่อเริ่มเปรียบเทียบ</div>
+    </div>
+
+  </div>
+
+  <!-- ===================== TAB 3: CREATE NEW EA (SPEC BUILDER) ===================== -->
+  <div class="tab-page" id="tab-create">
+    <div class="panel">
+      <div class="section-title" style="margin-top:0;">สร้าง EA ใหม่ (ใบสเปค) <span class="tag">เลือก EA ต้นแบบ แล้วติ๊กเพิ่ม/ลดคุณสมบัติ เพื่อสร้างแผนสำหรับไปพัฒนาโค้ดจริงต่อ</span></div>
+      <p class="note" style="margin-top:-4px;">⚠ เครื่องมือนี้<b>ไม่ได้รันแบคเทสจริงหรือออกโค้ดที่คอมไพล์ได้</b> — ผลลัพธ์คือ "ใบสเปค" สรุปการเปลี่ยนแปลงจากต้นแบบ นำไปแก้โค้ด .mq5 จริงเองใน MetaEditor แล้วค่อยอัพโหลดผลเทสจริงกลับเข้าระบบทีหลัง (แท็บ "เปรียบเทียบ EA")</p>
+      <div class="controls-grid" style="margin-top:14px;">
+        <div class="field">
+          <label>EA ต้นแบบ (Base Template)</label>
+          <select id="createBaseSelect" onchange="onCreateBaseChange()"></select>
+        </div>
+        <div class="field">
+          <label>ชื่อ EA ใหม่ (ไม่บังคับ)</label>
+          <input type="text" id="createNameInput" placeholder="เช่น US30_v3.00_NoNewsBlock">
+        </div>
+        <div class="field">
+          <button class="add-btn" onclick="generateEASpec()">🧬 สร้างใบสเปค EA ใหม่</button>
+        </div>
+      </div>
+      <div class="section-title toggleable" onclick="toggleSection('sec-createFeat')" style="margin-top:14px;font-size:12.5px;">
+        <span class="chevron" id="chev-sec-createFeat">▾</span>คุณสมบัติของ EA ใหม่ <span class="tag">(ติ๊ก = มีในเวอร์ชันใหม่ ไม่ติ๊ก = ตัดออก — เริ่มต้นตามต้นแบบที่เลือกไว้ด้านบน)</span>
+      </div>
+      <div class="panel collapsible" id="sec-createFeat" style="padding:10px 12px;">
+        <div class="feat-pick-grid" id="createFeatGrid"></div>
+      </div>
+      <div class="status-msg" id="createStatusMsg"></div>
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <div class="section-title" style="margin-top:0;">ใบสเปค EA ที่สร้างไว้ <span class="tag" id="createDraftCount"></span></div>
+      <div id="createDraftList"></div>
+      <div class="code-view" id="draftView"><div class="code-view-head"><span id="draftViewTitle"></span><button class="reset-btn" style="padding:4px 10px;font-size:11px;" onclick="closeDraftView()">ปิด ×</button></div><pre id="draftViewPre"></pre></div>
+    </div>
+  </div>
+
+  <p class="note">
+    <b>หลักการคำนวณ What-If:</b> ลำดับเวลาเข้า/ออกไม้และผลแพ้-ชนะแต่ละไม้ใช้ของจริงจากผลแบคเทสเดิม เมื่อเปลี่ยน Lot ระบบคูณกำไร/ขาดทุนของทุกไม้ด้วยอัตราส่วน Lot ใหม่ ÷ Lot เดิม ทุนเริ่มต้นกระทบแค่ Equity Curve และ % ผลตอบแทน/DD เท่านั้น<br><br>
+    <b>ข้อจำกัด:</b> ไม่ได้คำนวณ Margin/Stop-out จริงจากโบรกเกอร์ Win Rate และ Profit Factor ไม่เปลี่ยนตาม Lot เพราะเป็นอัตราส่วน<br><br>
+    <b>หมายเหตุคุณภาพข้อมูล:</b> v2.10.6b และ v2.10.6c ให้ผลลัพธ์เหมือน v2.10.6a เป๊ะทุกตัวเลข (สงสัยว่าติดไฟล์ผิดตอนรันแบคเทส) และ E20 (SpreadFilter) ถูกตัดออกเพราะมี 0 เทรดตลอดการทดสอบ — ควรตีความผลของ 3 ตัวนี้ด้วยความระมัดระวัง
+  </p>
+
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/js/supabaseClient.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

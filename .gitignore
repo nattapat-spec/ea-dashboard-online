@@ -1,0 +1,4 @@
+# ไฟล์ระบบที่ไม่ต้องเก็บใน git
+.DS_Store
+Thumbs.db
+*.log
