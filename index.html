@@ -197,6 +197,13 @@
   <!-- ===================== TAB 2: COMPARE (ALL EAs) ===================== -->
   <div class="tab-page active" id="tab-compare">
 
+    <div class="section-title">🏆 อันดับ Top 10 EA <span class="tag">(คลิกการ์ดเพื่อเพิ่ม/เอาออกจากตารางเปรียบเทียบด้านล่าง)</span></div>
+    <div class="mode-toggle" id="cmpCardsFilterToggle" style="margin-bottom:14px;">
+      <button data-f="all" class="active">ทั้งหมด (10 ตัว)</button>
+      <button data-f="selected">เฉพาะที่เลือก</button>
+    </div>
+    <div class="cards" id="cmpTopCards"></div>
+
     <div class="section-title toggleable" onclick="toggleSection('sec-cmp-picker')"><span class="chevron" id="chev-sec-cmp-picker">▾</span>เลือก EA ที่จะเปรียบเทียบ <span class="tag" id="pickCount"></span></div>
     <div class="collapsible" id="sec-cmp-picker">
     <div class="panel">

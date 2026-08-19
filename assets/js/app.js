@@ -639,10 +639,61 @@ function renderPicker(){
   }).join('');
   document.getElementById('pickCount').textContent = `(เลือกอยู่ ${cmpSelected.size} ตัว จากทั้งหมด ${allCodes().length} ตัว)`;
 }
-function cmpToggleEA(code){ if (cmpSelected.has(code)) cmpSelected.delete(code); else cmpSelected.add(code); renderPicker(); cmpRenderAll(); }
-function cmpSelectTop(n){ cmpSelected = new Set(TOP10_ORDER.slice(0,n)); renderPicker(); cmpRenderAll(); }
-function cmpSelectAll(){ cmpSelected = new Set(allCodes()); renderPicker(); cmpRenderAll(); }
-function cmpClearSelection(){ cmpSelected = new Set(); renderPicker(); cmpRenderAll(); }
+function cmpToggleEA(code){ if (cmpSelected.has(code)) cmpSelected.delete(code); else cmpSelected.add(code); renderPicker(); renderCmpTopCards(); cmpRenderAll(); }
+function cmpSelectTop(n){ cmpSelected = new Set(TOP10_ORDER.slice(0,n)); renderPicker(); renderCmpTopCards(); cmpRenderAll(); }
+function cmpSelectAll(){ cmpSelected = new Set(allCodes()); renderPicker(); renderCmpTopCards(); cmpRenderAll(); }
+function cmpClearSelection(){ cmpSelected = new Set(); renderPicker(); renderCmpTopCards(); cmpRenderAll(); }
+let cmpTopCardsFilter = 'all'; // 'all' | 'selected'
+function renderCmpTopCards(){
+  const el = document.getElementById('cmpTopCards');
+  if (!el) return;
+
+  if (cmpTopCardsFilter === 'selected'){
+    // โหมดนี้โชว์ "ทุกตัว" ที่เลือกไว้จริง ไม่จำกัดแค่ Top10 (รวม EA ที่อัพโหลดเองด้วย)
+    const codes = [...cmpSelected].filter(c=>getEA(c));
+    if (!codes.length){
+      el.innerHTML = '<div class="empty-state">ยังไม่ได้เลือก EA เลย — สลับไป "ทั้งหมด (10 ตัว)" ด้านบน หรือติ๊กเลือกในรายการด้านล่างก่อน</div>';
+      return;
+    }
+    const uniformLotEl = document.getElementById('uniformLot');
+    const uniformCapEl = document.getElementById('uniformCap');
+    const uniformLot = uniformLotEl ? (parseFloat(uniformLotEl.value) || 0.3) : 0.3;
+    const uniformCap = uniformCapEl ? (parseFloat(uniformCapEl.value) || 1000) : 1000;
+    el.innerHTML = codes.map(code=>{
+      const s = cmpMode==='uniform' ? simulate(code, uniformLot, uniformCap) : simulate(code, null, null);
+      const label = eaMetaLabel(code) || 'EA ที่อัพโหลด';
+      return `<div class="card active" data-code="${code}" onclick="cmpToggleEA('${code}')">
+        <div class="rank">${label}</div>
+        <div class="name">${s.short}</div>
+        <div class="score">${fmt(s.netProfit)}</div>
+        <div class="sub">Win <b>${s.winRate.toFixed(1)}%</b> • PF <b>${isFinite(s.pf)?s.pf.toFixed(2):'∞'}</b> • DD <b>${s.maxDDPct.toFixed(1)}%</b> • เทรด <b>${s.totalTrades|0}</b></div>
+        <div class="sub">แพ้ติดกันสูงสุด <b>${s.mcl} ไม้</b> (${fmt(s.mclDollar)})</div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  // โหมด 'all' — ตรึงอันดับ Top10 เดิมเสมอ (ใช้ค่าสถิติต้นฉบับ)
+  el.innerHTML = TOP10_ORDER.map(code=>{
+    const m = META[code];
+    const active = cmpSelected.has(code) ? 'active' : '';
+    return `<div class="card ${active}" data-code="${code}" onclick="cmpToggleEA('${code}')">
+      <div class="rank">อันดับ ${m.rank} • Score ${m.score}</div>
+      <div class="name">${m.short||m.name}</div>
+      <div class="score">${fmt(m.net_profit)}</div>
+      <div class="sub">Win <b>${m.win_rate_pct.toFixed(1)}%</b> • PF <b>${m.profit_factor.toFixed(2)}</b> • DD <b>${m.bal_dd_max_pct.toFixed(1)}%</b> • เทรด <b>${m.total_trades|0}</b></div>
+      <div class="sub">แพ้ติดกันสูงสุด <b>${m.max_consec_losses_count} ไม้</b> (${fmt(m.max_consec_losses_dollar)})</div>
+    </div>`;
+  }).join('');
+}
+document.getElementById('cmpCardsFilterToggle').addEventListener('click', e=>{
+  const b = e.target.closest('button');
+  if(!b) return;
+  document.querySelectorAll('#cmpCardsFilterToggle button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  cmpTopCardsFilter = b.dataset.f;
+  renderCmpTopCards();
+});
 document.getElementById('pickerSearch').addEventListener('input', renderPicker);
 
 document.getElementById('modeToggle').addEventListener('click', e=>{
@@ -656,10 +707,11 @@ document.getElementById('modeToggle').addEventListener('click', e=>{
   document.getElementById('modeNote').textContent = cmpMode==='uniform'
     ? 'ทุก EA ที่เลือกจะถูกจำลองด้วย Lot และทุนเริ่มต้นเดียวกัน เหมาะสำหรับเทียบแบบยุติธรรมที่ทุนเท่ากัน'
     : 'แต่ละ EA จะใช้ Lot และทุนเริ่มต้นตามผลแบคเทสจริงของตัวเอง';
+  renderCmpTopCards();
   cmpRenderAll();
 });
-document.getElementById('uniformLot').addEventListener('input', cmpRenderAll);
-document.getElementById('uniformCap').addEventListener('input', cmpRenderAll);
+document.getElementById('uniformLot').addEventListener('input', ()=>{ renderCmpTopCards(); cmpRenderAll(); });
+document.getElementById('uniformCap').addEventListener('input', ()=>{ renderCmpTopCards(); cmpRenderAll(); });
 
 function cmpRenderAll(){
   const area = document.getElementById('cmpResultsArea');
@@ -1558,6 +1610,7 @@ initAutosaveDB().catch(()=>{}).then(()=>{
   populateEASelect();
   resetToOriginal();
   renderPicker();
+  renderCmpTopCards();
   renderUploadedList();
   renderDeletedList();
   populateCreateBaseSelect();
