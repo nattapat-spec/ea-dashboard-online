@@ -206,3 +206,40 @@ table.logic-table tr.note-row td.mono { font-family:"SF Mono",Consolas,monospace
 table.logic-table thead th { white-space:nowrap; }
 
 .save-persist-row{background:var(--panel2);border-radius:var(--r-md);padding:14px 16px;}
+
+/* ============ PICKER v2 — แถบที่เลือก + กลุ่มตระกูล ============ */
+.pick-chosen{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:14px;
+  padding:11px 13px;background:var(--panel2);border:1px solid var(--border);border-radius:var(--r-sm);}
+.pick-chosen.empty{color:var(--muted2);font-size:12px;}
+.pick-chosen-h{font-size:11.5px;font-weight:700;color:var(--muted);margin-right:4px;}
+.pchip{display:inline-flex;align-items:center;gap:6px;background:var(--panel);
+  border:1px solid var(--border);border-left:3px solid var(--swatch,var(--accent));
+  border-radius:var(--r-pill);padding:5px 10px 5px 9px;font-size:11.5px;font-weight:600;
+  cursor:pointer;transition:border-color .15s var(--ease),color .15s var(--ease);}
+.pchip:hover{border-color:var(--red);color:var(--red);}
+.pchip i{width:8px;height:8px;border-radius:2px;display:inline-block;flex-shrink:0;}
+.pchip b{color:var(--muted2);font-size:13px;line-height:1;margin-left:1px;}
+.pchip:hover b{color:var(--red);}
+.pchip-clear{margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);
+  border-radius:var(--r-pill);padding:5px 12px;font-size:11.5px;font-weight:600;cursor:pointer;}
+.pchip-clear:hover{color:var(--red);border-color:var(--red);}
+
+/* #eaPicker เดิมกินคลาส .ea-picker ที่เป็น grid — ต้องทับให้เป็น block ไม่งั้นกลุ่มจะเรียงเป็นคอลัมน์ */
+#eaPicker{display:block;max-height:600px;overflow-y:auto;padding-right:6px;}
+.pick-group{border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:8px;
+  background:var(--panel);overflow:hidden;}
+.pick-group.open{border-color:var(--border-strong);}
+.pick-ghead{display:flex;align-items:center;gap:9px;padding:10px 13px;cursor:pointer;
+  user-select:none;transition:background .15s var(--ease);}
+.pick-ghead:hover{background:var(--fill-hover);}
+.pick-ghead .chev{color:var(--muted2);font-size:10px;width:10px;flex-shrink:0;}
+.pick-ghead .gname{font-size:12.5px;font-weight:600;flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pick-ghead .gcount{font-size:11px;font-weight:700;color:var(--muted2);
+  background:var(--pill-track);border-radius:var(--r-pill);padding:3px 9px;flex-shrink:0;}
+.pick-ghead .gcount.on{color:var(--accent-ink,#fff);background:var(--accent);}
+.pick-ghead .gsel{background:none;border:1px solid var(--border);color:var(--muted);
+  border-radius:var(--r-pill);padding:4px 11px;font-size:11px;font-weight:600;
+  cursor:pointer;flex-shrink:0;transition:color .15s var(--ease),border-color .15s var(--ease);}
+.pick-ghead .gsel:hover{color:var(--text);border-color:var(--border-strong);}
+.pick-group .ea-picker{max-height:none;overflow:visible;padding:2px 13px 13px;}

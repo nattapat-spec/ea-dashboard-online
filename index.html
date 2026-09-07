@@ -229,13 +229,14 @@
     <div class="section-title toggleable" onclick="toggleSection('sec-cmp-picker')"><span class="chevron" id="chev-sec-cmp-picker">▾</span>เลือก EA ที่จะเปรียบเทียบ <span class="tag" id="pickCount"></span></div>
     <div class="collapsible" id="sec-cmp-picker">
     <div class="panel">
-      <input type="text" id="pickerSearch" class="picker-search" placeholder="ค้นหาชื่อ EA เช่น v2.10, ATR, RSI ...">
+      <input type="text" id="pickerSearch" class="picker-search" placeholder="ค้นหา — พิมพ์ชื่อหรือตระกูลก็ได้ เช่น FINAL, Combo, v2.10, ATR, RSI (พิมพ์แล้วทุกกลุ่มจะกางให้เอง)">
       <div class="ea-picker" id="eaPicker"></div>
       <div class="picker-actions">
+        <button onclick="cmpSelectFinal()">⭐ ตัวจบ 3 ตัว (S1+S2 · S1 · S2)</button>
         <button onclick="cmpSelectTop(3)">Top 3</button>
         <button onclick="cmpSelectTop(5)">Top 5</button>
         <button onclick="cmpSelectTop(10)">Top 10</button>
-        <button onclick="cmpSelectAll()">เลือกทั้งหมด (~48 ตัว)</button>
+        <button onclick="cmpSelectAll()">เลือกทั้งหมด (62 ตัว)</button>
         <button onclick="cmpClearSelection()">ล้างการเลือก</button>
       </div>
       <p class="note">คลิกไอคอน 🗑 ที่รายชื่อ EA แต่ละตัวเพื่อลบออกจากรายการเปรียบเทียบถาวร (ลบได้ทุกตัว รวมถึง EA เก่าในแคตตาล็อกด้วย) — กด "บันทึกไฟล์ถาวร" ในแผงอัพโหลดด้านบนอีกครั้งเพื่อให้การลบมีผลถาวรในไฟล์</p>
