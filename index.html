@@ -61,6 +61,28 @@
     <div class="cards" id="cards"></div>
     <p class="note" style="margin-bottom:22px;">การ์ดด้านบนแสดง <b>ค่าอ้างอิงเดิม</b> (Lot/ทุนเดิมของแต่ละ EA ตามผลแบคเทสจริง) ใช้คลิกเพื่อเลือก EA เท่านั้น</p>
 
+    <div class="section-title toggleable" onclick="toggleSection('sec-ddsummary')"><span class="chevron" id="chev-sec-ddsummary">▾</span>⚠️ สรุป Drawdown ≥30% ทุก EA <span class="tag">(จำนวนครั้งที่ Equity ตกจากจุดสูงสุด ≥30% และเกิดปีไหนบ้าง)</span></div>
+    <div class="panel collapsible" id="sec-ddsummary">
+      <div class="controls-grid">
+        <div class="field">
+          <label>จากวันที่ (นับตามวันที่จุดต่ำสุด)</label>
+          <input type="date" id="ddFromDate">
+        </div>
+        <div class="field">
+          <label>ถึงวันที่</label>
+          <input type="date" id="ddToDate">
+        </div>
+        <div class="field">
+          <button class="reset-btn" onclick="resetDDSummaryRange()">↺ ทั้งหมด (รีเซ็ตช่วงวันที่)</button>
+        </div>
+        <div class="field">
+          <div class="hint" id="ddRangeCount" style="margin-top:26px;"></div>
+        </div>
+      </div>
+      <div class="kpis" id="ddSummaryKpis" style="margin-top:14px;"></div>
+      <div class="matrix-scroll" style="margin-top:10px;"><table id="ddSummaryTable"></table></div>
+      <p class="note">คิดที่ <b>Lot มาตรฐาน 0.3 ทุก EA</b> (ทุนเริ่มต้นเป็นค่าเดิมของแต่ละตัว) เพื่อให้เทียบกันได้ตรงๆ • 1 &quot;ครั้ง&quot; = equity ตกจากจุดสูงสุดครั้งหนึ่ง ≥30% แล้วค่อยฟื้นตัวขึ้นทำจุดสูงสุดใหม่ (peak-to-trough) นับปีจากวันที่จุดต่ำสุดของครั้งนั้นเกิดขึ้น • เส้น Equity คำนวณจากประวัติเทรดเต็มของ EA เสมอ ช่วงวันที่ด้านบนใช้กรองว่าจะนับเฉพาะครั้งที่จุดต่ำสุดตกอยู่ในช่วงนั้นเท่านั้น (ไม่ตัดข้อมูลก่อนคำนวณ กัน peak เพี้ยน)</p>
+    </div>
 
   <div class="section-title toggleable" onclick="toggleSection('sec-logic-top10')"><span class="chevron" id="chev-sec-logic-top10">▾</span>ตาราง Logic ของ Top 10 EA <span class="tag">(ฟีเจอร์เป็นแถว, EA เป็นคอลัมน์ — ✓ = มีฟีเจอร์นี้)</span></div>
   <div class="panel matrix-scroll collapsible" id="sec-logic-top10">
@@ -294,6 +316,7 @@
 </div>
 
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="assets/js/supabaseClient.js"></script>
 <script src="assets/js/api.js"></script>
